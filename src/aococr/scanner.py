@@ -24,11 +24,15 @@ class Scanner:
     
     @classmethod
     def shape(cls, m):
+        """This is to abstract shape in case this is extended to other data types like numpy arrays"""
         height = len(m)
         width = len(m[0])
         return height, width
     
     def replace_characters(self, replacements: dict):
+        """Uses replacement dctionary to replace characters in data."""
+
+        # This may modify data in-place, so take a copy to avoid trouble
         self.m = copy.deepcopy(self.m)
         rows, cols = self.data_shape()
         for i in range(rows):
@@ -37,6 +41,7 @@ class Scanner:
                 self.m[i][j] = replacements[val]
 
     def data_shape(self):
+        """Returns shape of the data"""
         return self.shape(self.m)
     
     @classmethod
@@ -81,6 +86,7 @@ class Scanner:
     
     @classmethod
     def _equal(cls, a, b):
+        """This can be overloaded to work directly on numpy arrays"""
         if cls.shape(a) != cls.shape(b):
             return False
         

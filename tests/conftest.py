@@ -7,6 +7,7 @@ from aococr.resources import read_resource
 
 
 n_samples = 100
+sample_characters = 10
 rs = np.random.RandomState(seed=42)
 
 
@@ -26,13 +27,24 @@ def glyphdict_np(glyphdict):
 
 
 def make_random_ascii_with_solution(char_glyph_pairs):
-    inds = rs.choice(a=list(range(len(char_glyph_pairs))), size=10, replace=True)
-    
-    couples = (char_glyph_pairs[i] for i in inds)
+    inds = list(range(len(char_glyph_pairs)))
+    solution = ""
+    glyph_parts = []
 
-    chars, glyphs = zip(*couples)
-    solution = "".join(chars)
-    ascii_ = np.hstack(glyphs)
+    for _ in range(sample_characters):
+        i = rs.choice(a=inds)
+        char, glyph = char_glyph_pairs[i]
+        solution += char
+        glyph_parts.append(glyph)
+
+        # Add some random spacing
+        spacing = rs.choice(list(range(5)))
+        if spacing:
+            rows, _ = glyph.shape
+            pad = np.array([["." for _ in range(spacing)] for _ in range(rows)])
+            glyph_parts.append(pad)
+
+    ascii_ = np.hstack(glyph_parts)
     return solution, ascii_
 
 

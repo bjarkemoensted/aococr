@@ -1,51 +1,41 @@
-from collections import Counter
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import numpy as np
-
-try:
-    import numpy as np
-    _has_numpy = True
-except ImportError:
-    _has_numpy = False
-
 from aococr import config
 from aococr.parsing import string_to_list
 from aococr.resources import read_resource
-from aococr.scanner import Scanner  # TODO numpy version
+from aococr.scanner import Scanner
 
 _default_on_off = ("#", ".")
 
 
 def _pixel_vals_by_frequency(data) -> tuple:
-    """Attempts to infer which pixel values mean on/off in the input.
-    It is assumed that the most common character means off,
-    and the remaining character means on.
-    An error is raised if the input does not contain exactly 2 distinct values."""
+    """Returns a tuple of the unique pixel values contained in the input."""
     
     if isinstance(data, str):
         data = string_to_list(data)
 
-    counts = Counter(val for row in data for val in row)
-    observed = sorted(counts.keys(), key=lambda val: counts[val])
-    return tuple(observed)
+    unique = {val for row in data for val in row}
+    res = tuple(sorted(unique))
+    return res
 
 
-def infer_fontsize(shape):
+def infer_fontsize(shape: tuple) -> tuple:
+    """Attempts to infer fontsize from the shape of an input.
+    This just assumes that input is a single line of ASCII art, so just goes by height,
+    i.e. inputs with height 10 return (10, 6) and height 6 (6, 4)"""
+
     height, width = shape
     for fontsize in config.FONTSIZES:
         font_height, _ = fontsize
         if height == font_height:
             return fontsize
         #
+
     raise ValueError(f"Could not infer an available font size for input shape ({height}x{width}).")
 
 
-def ocr(
-        data: str|list|np.ndarray,
+def parse_pixels(
+        data,
         pixel_on_off_values: tuple|None|str = None,
-        glyph_dimensions_pixels: tuple=None
+        fontsize: tuple=None
     ) -> str:
     """Parses the ASCII art representations of letters sometimes encountered in Advent of Code (AoC).
     Whereas most problems have solutions which produce interger outputs, a few output stuff like:
@@ -65,29 +55,30 @@ def ocr(
         string: Plaintext, with newlines characters separating the lines.
         list of lists, with each element of the inner list being a single character.
         numpy array: 2D string array where each element is a single character. Other values
-            (e.g. integer array) will also be attempted interpreted.
-    pixel_on: AoC tends to use "#" and "." to represent pixels being on/off, respectively.
-        If the input uses different symbols, pixel_on will be interpreted as the pixel being on,
-        and converted to "#" when matched against known glyphs. As the data may only contain 2
-        distinct pixel values, the remaining value is assumed to mean off.
-        If no argument is provided, the values are inferred from the data.
-        An error is thrown if the data do not contain exactly 2 distinct pixel values.
-    glyph_dimension_pixels (tuple): AoC has featured ascii art stuff with various font sizes.
-        A specific font size can be specified here in a (height_in_pixels, width_in_pixels) format.
-        The supported values are (6, 4), and (10, 6) - the only ones occurring to my knowledge.
-        If not provided, the size is inferred from the data, going by the height, assuming a single
-        line of characters in the input."""
+            (e.g. integer array) will also be attempted to be interpreted.
+    pixel_on_off_values: tuple of the symbols representing pixels being on/off.
+        AoC tends to use "#" and "." to represent pixels being on/off, respectively.
+        If the input uses different symbols, the symbols can by passed as a tuple.
+        For instance, if using "x" and " " to represent pixels being on and off, passing
+        pixel_on_off_values = ("x", " ") then be converted into ("#", ".") before any pattern matching
+        is done.
+        pixel_on_off_values = "auto" can be used to attempt to infer the values automatically.
+    fontsize (tuple): The size (height x width) in pixels of the ascii art fonts to parse.
+        Fonts of sizes (6, 4) and (10, 6) are available.
+        If not specified, font size is inferred from the height of the input."""
     
-    # Turn into standard format
-
+    # If inferring the pixel on/off values, try both possible interpretations
     if pixel_on_off_values == "auto":
+
         observed_vals = _pixel_vals_by_frequency(data=data)
         reverse = observed_vals[::-1]
+        
+        # Assume the result with the greatest length corresponds to the correct on/off vals
         brute = (
-            ocr(
+            parse_pixels(
                 data=data,
                 pixel_on_off_values=tup,
-                glyph_dimensions_pixels=glyph_dimensions_pixels
+                fontsize=fontsize
             )
             for tup in (observed_vals, reverse)
         )
@@ -95,24 +86,25 @@ def ocr(
         best = max(brute, key=len)
         return best
 
-    replacements = None
-
 
     if pixel_on_off_values is None:
-        pass
+        replacements = None
     else:
         replacements = dict(zip(pixel_on_off_values, _default_on_off, strict=True))
     
-    
+    # Make a scanner instance to scan across input
     scanner = Scanner(data=data, replacements=replacements)
 
-    # Load the characters and ascii art glyphs
-    fontsize = infer_fontsize(scanner.data_shape())
+    # If fontsize isn't specified, infer from data. Getting shape from the scanner after it has handled type conversion
+    if fontsize is None:
+        fontsize = infer_fontsize(scanner.data_shape())
+    
+    # Read in the known ASCII art glyphs and the characters they represent
     char_glyphs_pairs = read_resource(fontsize=fontsize)
 
+    # Scan across data, keeping any characters with matched glyphs
     res = ""
 
-    # Scan left to right across the input, looking for matching ASCII art-like glyphs
     while not scanner.done():
         # Check for matches at the current location
         for char, glyph in char_glyphs_pairs:
@@ -127,15 +119,5 @@ def ocr(
     return res
 
 
-_ex = """
-$$$$$ff$f$$$$$$$$$$f$$$ff$$$ff$$ff$$ff$
-$fff$f$f$ffffff$$ff$f$ffff$$ff$$ff$$ff$
-$$$f$$ff$fffff$f$ff$f$ffff$$ff$$ff$$$$$
-$fff$f$ff$$ff$ff$$$ff$ffff$$ff$$ff$$ff$
-$fff$f$ffff$$fff$ffff$f$ff$$ff$$ff$$ff$
-$$$$$ff$$$$f$$$$$fff$$$f$$ff$$ff$$f$ff$
-"""
-
 if __name__ == '__main__':
-    code = ocr(_ex, pixel_on_off_values="auto")
-    print(code)
+    pass
