@@ -16,14 +16,10 @@ packages = [{include = "aococr", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-numpy = {version = ">=1.24", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 numpy = "^2.0"
 pytest = "*"
-
-[tool.poetry.extras]
-numpy = ["numpy"]
 
 [build-system]
 requires = ["poetry-core"]
