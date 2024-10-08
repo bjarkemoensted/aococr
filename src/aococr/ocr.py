@@ -1,38 +1,71 @@
-from aococr import config
-from aococr.parsing import string_to_list
+import argparse
+import sys
+
+from aococr import parsing
 from aococr.resources import read_resource
-from aococr.scanner import Scanner
 
 _default_on_off = ("#", ".")
 
 
-def _pixel_vals_by_frequency(data) -> tuple:
-    """Returns a tuple of the unique pixel values contained in the input."""
-    
-    if isinstance(data, str):
-        data = string_to_list(data)
+def shape(data):
+    """Shape method that works with both numpy arrays and lists of lists."""
+    height = len(data)
+    width = len(data[0])
+    assert all(len(row) == width for row in data)
 
-    unique = {val for row in data for val in row}
-    res = tuple(sorted(unique))
+    return height, width
+
+
+def replace_chars(data, pixel_on_off_values: tuple) -> list:
+    replace = dict(zip(pixel_on_off_values, _default_on_off, strict=True))
+    res = [[replace[char] for char in row] for row in data]
     return res
 
 
-def infer_fontsize(shape: tuple) -> tuple:
-    """Attempts to infer fontsize from the shape of an input.
-    This just assumes that input is a single line of ASCII art, so just goes by height,
-    i.e. inputs with height 10 return (10, 6) and height 6 (6, 4)"""
+class Scanner:
+    """Helper class for scanning left to right across some data and recognize any known glyphs"""
 
-    height, width = shape
-    for fontsize in config.FONTSIZES:
-        font_height, _ = fontsize
-        if height == font_height:
-            return fontsize
-        #
+    def __init__(self, char_glyph_pairs: list):
+        """char_glyph_pairs is a list of (char, glyph) tuples where char is a single character,
+        and glyph can be a numpy array or list-of-lists representing a series of ASCII art-like
+        glyphs."""
 
-    raise ValueError(f"Could not infer an available font size for input shape ({height}x{width}).")
+        self.char_glyph_pairs = char_glyph_pairs
+
+    def __call__(self, data) -> str:
+        """Scans across input data, noting any matching characters.
+        Returns a string representing the matched characters.
+        Interprets any index out of bounds as a non-match, so take care to check dimensions."""
+
+        rows, cols = shape(data)
+
+        res = ""
+        pos = 0  # The left edge of the sliding window
+
+        # Go over data and check for any matching glyphs
+        while pos < cols:
+            for char, glyph in self.char_glyph_pairs:
+                # It's a match if the glyphs shape fits in the remainder of the data, and all elements match
+                height, width = shape(glyph)
+                dim_match = height <= rows and pos + width <= cols
+                char_match = (data[i][pos+j] == glyph[i][j] for i in range(height) for j in range(width))
+                match = dim_match and all(char_match)
+
+                # If it's a match, note the matching character and shift the window by the glyphs width
+                if match:
+                    res += char
+                    pos += width
+                    break
+                #
+            else:
+                # If not match, shift the window 1 pixel to the right
+                pos += 1
+            #
+        return res
 
 
-def parse_pixels(
+
+def aococr(
         data,
         pixel_on_off_values: tuple|None|str = None,
         fontsize: tuple=None
@@ -58,65 +91,80 @@ def parse_pixels(
             (e.g. integer array) will also be attempted to be interpreted.
     pixel_on_off_values: tuple of the symbols representing pixels being on/off.
         AoC tends to use "#" and "." to represent pixels being on/off, respectively.
-        If the input uses different symbols, the symbols can by passed as a tuple.
+        If the input data uses different symbols, the symbols can by passed as a tuple.
         For instance, if using "x" and " " to represent pixels being on and off, passing
         pixel_on_off_values = ("x", " ") then be converted into ("#", ".") before any pattern matching
         is done.
-        pixel_on_off_values = "auto" can be used to attempt to infer the values automatically.
+        For the default (None), the characters in the input are checked. If they're "#" and ".", no
+        conversion is done. Otherwise, both possible replacements are attempted, and whichever one
+        results in more matching characters is retained.
     fontsize (tuple): The size (height x width) in pixels of the ascii art fonts to parse.
         Fonts of sizes (6, 4) and (10, 6) are available.
         If not specified, font size is inferred from the height of the input."""
     
-    # If inferring the pixel on/off values, try both possible interpretations
-    if pixel_on_off_values == "auto":
-
-        observed_vals = _pixel_vals_by_frequency(data=data)
-        reverse = observed_vals[::-1]
-        
-        # Assume the result with the greatest length corresponds to the correct on/off vals
-        brute = (
-            parse_pixels(
-                data=data,
-                pixel_on_off_values=tup,
-                fontsize=fontsize
-            )
-            for tup in (observed_vals, reverse)
-        )
-
-        best = max(brute, key=len)
-        return best
-
-
-    if pixel_on_off_values is None:
-        replacements = None
-    else:
-        replacements = dict(zip(pixel_on_off_values, _default_on_off, strict=True))
+    if isinstance(data, str):
+        data = parsing.string_to_list(data)
     
-    # Make a scanner instance to scan across input
-    scanner = Scanner(data=data, replacements=replacements)
-
-    # If fontsize isn't specified, infer from data. Getting shape from the scanner after it has handled type conversion
+    # Infer fontsize if none is provided
     if fontsize is None:
-        fontsize = infer_fontsize(scanner.data_shape())
-    
-    # Read in the known ASCII art glyphs and the characters they represent
-    char_glyphs_pairs = read_resource(fontsize=fontsize)
+        fontsize = parsing.infer_fontsize(shape(data))
 
-    # Scan across data, keeping any characters with matched glyphs
-    res = ""
+    # Make a scanner with the relevant font
+    char_glyph_pairs = read_resource(fontsize=fontsize)
+    scanner = Scanner(char_glyph_pairs=char_glyph_pairs)
 
-    while not scanner.done():
-        # Check for matches at the current location
-        for char, glyph in char_glyphs_pairs:
-            if scanner.match(glyph, skip_ahead_on_match=True):
-                res += char
-                break
-            #
+    # Determine which, if any, replacements of pixel values to perform
+    replacements = ()
+    pixel_vals_in_data = {char for row in data for char in row}
+    uses_standard_values = pixel_vals_in_data == set(_default_on_off)
+
+    if isinstance(pixel_on_off_values, tuple):
+        # If a replacement tuple is specified, use it
+        replacements = (pixel_on_off_values,)
+    elif pixel_on_off_values is None:
+        if uses_standard_values:
+            # If the input consists of "#" and ".", use as-is
+            pass
         else:
-            # If no glyphs match, skip ahead to the next line
-            scanner.skip_ahead()
+            # Otherwise, try interpreting both as on/off
+            vals = tuple(pixel_vals_in_data)
+            replacements = (vals, vals[::-1])
+    else:
+        raise ValueError
+
+    if not replacements:
+        res = scanner(data)
+    else:
+        # use the replacement(s) and keep the longest result
+        swaps = (replace_chars(data=data, pixel_on_off_values=r) for r in replacements)
+        res = max((scanner(swap) for swap in swaps), key=len)
     
     return res
+
+
+_cli_description = \
+"""Converts Advent of Code ASCII art-like strings into letters.
+For example, converts
+
+.##..###...##.
+#..#.#..#.#..#
+#..#.###..#...
+####.#..#.#...
+#..#.#..#.#..#
+#..#.###...##.
+
+Into "ABC"
+"""
+
+
+def ocr_cli() -> None:
+    """CLI version to run ocr on stdin"""
+    parser = argparse.ArgumentParser(description=_cli_description, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.parse_args()
+    data = sys.stdin.read()
+    res = aococr(data=data)
+    sys.stdout.write(res)
+
 
 
 if __name__ == '__main__':

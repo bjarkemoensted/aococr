@@ -24,3 +24,6 @@ pytest = "*"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+aoc-ocr = "aococr.ocr:ocr_cli"

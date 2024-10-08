@@ -157,10 +157,7 @@ files = [
     {file = "tomli-2.0.2.tar.gz", hash = "sha256:d46d457a85337051c36524bc5349dd91b1877838e2979ac5ced3e710ed8a60ed"},
 ]
 
-[extras]
-numpy = ["numpy"]
-
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "f4e592d0f67b6e0a999cdc83d3b0ffef38bb9b32f1c0a512535d3123616ce497"
+content-hash = "3a93c3ed253ee80b46649f5dc5e56f86fe0841dc641225d251bc0fc870a6b429"
