@@ -2,6 +2,7 @@ import argparse
 import sys
 
 from aococr import parsing
+from aococr.parsing import arr_to_str, string_to_list
 from aococr.resources import read_resource
 
 _default_on_off = ("#", ".")
@@ -169,3 +170,16 @@ def ocr_cli() -> None:
 
 if __name__ == '__main__':
     pass
+
+
+def display(m):
+    """Prints ASCII art-like glyphs in a way that looks good on the terminal.
+    Replaces '.' with empty space " " to make reading easier.
+    Works with strings, lists of lists, and numpy arrays."""
+
+    if isinstance(m, str):
+        m = string_to_list(m)
+
+    replace = {".": " "}
+    s = arr_to_str(m=m, char_replacements=replace)
+    print(s)

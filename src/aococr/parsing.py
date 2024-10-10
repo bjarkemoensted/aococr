@@ -32,12 +32,3 @@ def infer_fontsize(shape: tuple) -> tuple:
         #
 
     raise ValueError(f"Could not infer an available font size for input shape ({height}x{width}).")
-
-
-def display(m):
-    """Prints an array of characters in a way that looks good on the terminal.
-    Replaces '.' with empty space " " to make reading easier."""
-
-    replace = {".": " "}
-    s = arr_to_str(m=m, char_replacements=replace)
-    print(s)

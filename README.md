@@ -33,8 +33,8 @@ display_string = """
 #..#.###...##.
 """
 
-# Convert into 'ABC'
 s = aococr(display_string)
+print(s)  # prints "ABC"
 ```
 
 The `aococr` method accepts several data types:
