@@ -82,12 +82,30 @@ def example_ascii_str(example_ascii_numpy):
 _chars = "';lsdfjbasvkegad[okd#$@#$23514#]."
 
 
+def get_replacement_chars():
+    """Gets 2 random characters to swap for the default symbols (. and #) to test
+    that ocr works with other characters.
+    Avoids returning the default symbols because they're assumed to hold their usual meaning
+    ('.' for empty and '#' for full), so inadvertently passing an input where the
+    characters hold the opposite meanings would not work."""
+
+    vals = list(set(_chars))
+    res = rs.choice(vals, size=2, replace=False)
+    
+    bad_combo = set(res) == {".", "#"}
+    if bad_combo:
+        return get_replacement_chars()
+    else:
+        return res
+    #
+
+
 @pytest.fixture
 def example_ascii_str_swapped(example_ascii_str):
-    vals = list(set(_chars))
     res = []
+    replacement_chars = get_replacement_chars()
     for s in example_ascii_str:
-        replace = dict(zip(["#", "."], rs.choice(vals, size=2, replace=False)))
+        replace = dict(zip(["#", "."], replacement_chars))
         res.append(''.join(replace.get(c, c) for c in s))
     return res
 

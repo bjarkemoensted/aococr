@@ -1,4 +1,4 @@
-# **aococr** - Advent of Code ASCII-art character recognition
+# **aococr**
 OCR tool in python for Advent of Code (AoC) ASCII art.
 
 Som AoC puzzles produce a result which uses values '#', and '.' to mimic pixels turned on/off in a display, like below:
@@ -19,7 +19,10 @@ Variations like fontsize of the ASCII glyphs and handling other characters than 
 ## Installation
 `pip install aococr`
 
-## In python:
+## Usage
+Can be used in a python script, or from the command line
+
+### In python:
 
 ```python
 from aococr import aococr
@@ -43,8 +46,11 @@ The `aococr` method accepts several data types:
 * numpy-arrays (though numpy is not a dependency)
 
 ## From command line
+The `aoc-ocr` CLI tool reads from stdin and writes its result to stdout, so it can be run on e.g. ascii art in a text file, or by piping the output from another script directly like:
 ```bash
 aoc-ocr < some_file.txt
+# or
+python solve_day_xx.py | aoc-ocr
 ```
 
 ## Credit

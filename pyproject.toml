@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "aococr"
-version = "0.2.0"
-description = ""
+version = "0.3.0"
+description = "Advent of Code ASCII-art character recognition"
 authors = ["bjarkemoensted <bjarkemoensted@gmail.com>"]
 readme = "README.md"
 package-mode = true
