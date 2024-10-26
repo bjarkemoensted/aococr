@@ -20,7 +20,7 @@ def test_ocr_list_input(example_codes, example_ascii_list):
     #
 
 
-def test_robust_to_char_swap(example_codes, example_ascii_numpy):    
+def test_ocr_numpy_input(example_codes, example_ascii_numpy):    
     for code, data in zip(example_codes, example_ascii_numpy):
         output = aococr(data)
         assert code == output

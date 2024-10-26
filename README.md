@@ -43,7 +43,9 @@ print(s)  # prints "ABC"
 The `aococr` method accepts several data types:
 * list of lists of characters
 * strings, which are stripped of trailing/leading whitespace and converted into lists of lists
-* numpy-arrays (though numpy is not a dependency)
+* numpy-arrays of characters (though numpy is not a dependency)
+
+A helper method for displaying ASCII art on a terminal can also be imported using `from aococr import display`. It takes any of the formats listed above, replaces `'.'` with `' '` to increase readability, and prints it.
 
 ## From command line
 The `aoc-ocr` CLI tool reads from stdin and writes its result to stdout, so it can be run on e.g. ascii art in a text file, or by piping the output from another script directly like:
